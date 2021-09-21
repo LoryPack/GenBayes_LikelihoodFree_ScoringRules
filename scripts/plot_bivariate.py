@@ -97,14 +97,14 @@ for method_idx, method in enumerate(methods_list):
                                       f"{n_samples_per_param}_n-sam-in-obs_{n_samples_in_obs}"
         if model == "MA2":
             if method == "KernelScore":
-                filename += f"_weight_{640.0}"
+                filename += f"_weight_{207.6652}"
             elif method == "EnergyScore":
-                filename += f"_weight_{30.0}"
+                filename += f"_weight_{12.9689}"
         elif model == "MG1":
             if method == "KernelScore":
-                filename += f"_weight_{7000.0}"
+                filename += f"_weight_{597.0734}"
             elif method == "EnergyScore":
-                filename += f"_weight_{50.0}"
+                filename += f"_weight_{10.9802}"
 
         journal = Journal.fromFile(filename + ".jnl")
 

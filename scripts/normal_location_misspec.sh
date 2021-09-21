@@ -113,7 +113,7 @@ done
 
 # PLOTS
 echo PLOTS
-# Figures 6 and 10
+# Figures 5 and 10
 python3 scripts/plot_location_normal_misspec.py $model \
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \

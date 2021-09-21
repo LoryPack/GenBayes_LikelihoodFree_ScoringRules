@@ -74,7 +74,7 @@ for ((k2=0;k2<${#N_SAMPLES_IN_OBS[@]};++k2)); do
 done
 done
 
-# Figure 4
+# Figure 3
 python scripts/plot_marginals_n_obs.py $model \
     --inference_folder $inference_folder \
     --observation_folder $observation_folder \

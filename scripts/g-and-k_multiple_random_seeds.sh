@@ -64,7 +64,7 @@ done
 done
 
 
-# Figure 3
+# Figure 8
 python scripts/plot_traces_multiple_seeds.py $model \
     --inference_folder $inference_folder \
     --observation_folder $observation_folder\

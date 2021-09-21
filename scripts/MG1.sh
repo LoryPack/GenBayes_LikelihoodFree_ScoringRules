@@ -67,8 +67,7 @@ for ((k=0;k<${#METHODS[@]};++k)); do
 done
 
 # INFERENCE WITH SCORING RULES WITH DIFFERENT WEIGHTS
-# estimate the weight for all my methods wrt SyntheticLikelihood; this however leads to broad posterior, so that we'll
-# try with different weights.
+# estimate the weight for all my methods wrt SyntheticLikelihood
 METHODS=( EnergyScore KernelScore )
 for ((k=0;k<${#METHODS[@]};++k)); do
     method=${METHODS[k]}
@@ -84,20 +83,20 @@ for ((k=0;k<${#METHODS[@]};++k)); do
 
 done
 
-# Perform inference with different weights
+# Perform inference with different weights; the first weight value is what we find with our heuristics
 FOLDER=results/${model}/${inference_folder}/
 
 for ((j=0;j<${#METHODS[@]};++j)); do
     method=${METHODS[j]}
 
      if [[ "$method" == "KernelScore" ]]; then
-        WEIGHTLIST=( 500 1000 1500 2000 2500 3000 3500 4000 4500 5000 5500 6000 6500 7000 7500 8000 )
-        PROPSIZE=( 1 0.8 0.5 0.3 0.2 0.1 0.1 0.05 0.05 0.04 0.02 0.02 0.01 0.005 0.005 0.002 )
+        WEIGHTLIST=( 597.0734 500 1000 1500 2000 2500 3000 3500 4000 4500 5000 5500 6000 6500 7000 7500 8000 )
+        PROPSIZE=( 1 1 0.8 0.5 0.3 0.2 0.1 0.1 0.05 0.05 0.04 0.02 0.02 0.01 0.005 0.005 0.002 )
      fi
 
      if [[ "$method" == "EnergyScore" ]]; then
-        WEIGHTLIST=( 11 14 17 20 23 26 29 32 35 38 41 44 47 50 53 56 )
-        PROPSIZES=( 0.9 0.8 0.6 0.5 0.4 0.3 0.2 0.05 0.05 0.05 0.05 0.04 0.04 0.04 0.04 0.01  )
+        WEIGHTLIST=( 10.9802 11 14 17 20 23 26 29 32 35 38 41 44 47 50 53 56 )
+        PROPSIZES=( 1 0.9 0.8 0.6 0.5 0.4 0.3 0.2 0.05 0.05 0.05 0.05 0.04 0.04 0.04 0.04 0.01  )
      fi
 
 for ((l=0;l<${#WEIGHTLIST[@]};++l)); do
@@ -129,7 +128,7 @@ for ((l=0;l<${#WEIGHTLIST[@]};++l)); do
 done
 done
 
-# Figure 8
+# Figure 7
 python scripts/plot_bivariate.py $model \
     --inference_folder $inference_folder \
     --true_posterior_folder $true_posterior_folder \
