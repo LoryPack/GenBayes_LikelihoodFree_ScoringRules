@@ -1,3 +1,5 @@
+import abcpy.statistics
+import matplotlib.pyplot as plt
 import numpy as np
 from abcpy.acceptedparametersmanager import AcceptedParametersManager
 from abcpy.approx_lhd import SynLikelihood, SemiParametricSynLikelihood
@@ -64,7 +66,10 @@ class DrawFromPrior(InferenceMethod):
         simulations = np.array(simulations)
 
         parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
-        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+        if len(simulations.shape) == 4:
+            simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+        elif len(simulations.shape) == 5:
+            simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[4],))
 
         return parameters, simulations
 
@@ -101,14 +106,16 @@ class DrawFromPrior(InferenceMethod):
         return theta, y_sim
 
 
-def define_default_folders_scoring_rules():
+def define_default_folders():
     default_root_folder = {"MA2": "results/MA2",
                            "univariate_g-and-k": "results/univariate_g-and-k",
                            "g-and-k": "results/g-and-k",
                            "univariate_Cauchy_g-and-k": "results/univariate_Cauchy_g-and-k",
                            "Cauchy_g-and-k": "results/Cauchy_g-and-k",
                            "MG1": "results/MG1",
-                           "normal_location_misspec": "results/normal_location_misspec"}
+                           "normal_location_misspec": "results/normal_location_misspec",
+                           "RecruitmentBoomBust": "results/RecruitmentBoomBust",
+                           "Lorenz96": "results/Lorenz96"}
 
     return default_root_folder
 
@@ -122,7 +129,9 @@ def define_exact_param_values():
                         "univariate_Cauchy_g-and-k": [],
                         "Cauchy_g-and-k": [],
                         "MG1": [1, 5, 0.2],
-                        "normal_location_misspec": [1]}
+                        "normal_location_misspec": [1],
+                        "RecruitmentBoomBust": [0.4, 50.0, 0.09, 0.05],
+                        "Lorenz96": [2, 0.8, 1.7, 0.4]}
     return exact_par_values
 
 
@@ -244,11 +253,6 @@ def extract_params_from_journal_normal(jrnl, step=None):
     return np.array(params['theta']).reshape(-1, 1)
 
 
-def extract_params_from_journal_MA1(jrnl, step=None):
-    params = jrnl.get_parameters(step)
-    return np.array(params['theta1']).reshape(-1, 1)
-
-
 def extract_params_from_journal_gk(jrnl, step=None):
     params = jrnl.get_parameters(step)
     return np.concatenate((np.array(params['A']).reshape(-1, 1), np.array(params['B']).reshape(-1, 1),
@@ -271,6 +275,20 @@ def extract_params_from_journal_MG1(jrnl, step=None):
 def extract_params_from_journal_MA2(jrnl, step=None):
     params = jrnl.get_parameters(step)
     return np.concatenate((np.array(params['theta1']).reshape(-1, 1), np.array(params['theta2']).reshape(-1, 1)),
+                          axis=1)
+
+
+def extract_params_from_journal_RBB(jrnl, step=None):
+    params = jrnl.get_parameters(step)
+    return np.concatenate((np.array(params['r']).reshape(-1, 1), np.array(params['kappa']).reshape(-1, 1),
+                           np.array(params['alpha']).reshape(-1, 1), np.array(params['beta']).reshape(-1, 1)),
+                          axis=1)
+
+
+def extract_params_from_journal_Lorenz96(jrnl, step=None):
+    params = jrnl.get_parameters(step)
+    return np.concatenate((np.array(params['theta1']).reshape(-1, 1), np.array(params['theta2']).reshape(-1, 1),
+                           np.array(params['sigma_e']).reshape(-1, 1), np.array(params['phi']).reshape(-1, 1)),
                           axis=1)
 
 
@@ -315,6 +333,7 @@ def heuristics_estimate_w(model_abc, observation, target_SR, reference_SR, backe
                     target_sr_1[i] - target_sr_2[j])
 
     w_estimates = w_estimates.flatten()
+    print("There were ", np.sum(np.isnan(w_estimates)), " nan values out of ", n_theta * n_theta_prime)
     w_estimates = w_estimates[~np.isnan(w_estimates)]  # drop nan values
 
     return_list = []
@@ -326,7 +345,8 @@ def heuristics_estimate_w(model_abc, observation, target_SR, reference_SR, backe
     return return_list[0] if len(return_list) == 1 else return_list
 
 
-def estimate_bandwidth(model_abc, backend, n_theta=100, n_samples_per_param=100, seed=42, return_values=["median"]):
+def estimate_bandwidth(model_abc, statistics, backend, n_theta=100, n_samples_per_param=100, seed=42,
+                       return_values=["median"]):
     """Estimate the bandwidth for the gaussian kernel in KernelSR. Specifically, it generates n_samples_per_param
     simulations for each theta, then computes the pairwise distances and takes the median of it. The returned value
     is the median (by default; you can also compute the mean if preferred) of the latter over all considered values
@@ -335,6 +355,12 @@ def estimate_bandwidth(model_abc, backend, n_theta=100, n_samples_per_param=100,
     # generate the values of theta from prior
     theta_vect, simulations_theta_vect = DrawFromPrior([model_abc], backend, seed=seed).sample(n_theta,
                                                                                                n_samples_per_param)
+    if not isinstance(statistics, abcpy.statistics.Identity):
+        simulations_theta_vect_list = [x for x in simulations_theta_vect.reshape(-1, simulations_theta_vect.shape[-1])]
+        simulations_theta_vect = statistics.statistics(simulations_theta_vect_list)
+        simulations_theta_vect = simulations_theta_vect.reshape(n_theta, n_samples_per_param,
+                                                                simulations_theta_vect.shape[-1])
+
     print("Simulations shape for learning bandwidth", simulations_theta_vect.shape)
 
     distances = np.zeros((n_theta, n_samples_per_param * (n_samples_per_param - 1)))
@@ -357,9 +383,117 @@ def estimate_bandwidth(model_abc, backend, n_theta=100, n_samples_per_param=100,
     return return_list[0] if len(return_list) == 1 else return_list
 
 
+def estimate_bandwidth_timeseries(model_abc, backend, num_vars, n_theta=100, seed=42, return_values=["median"]):
+    """Estimate the bandwidth for the gaussian kernel in KernelSR. Specifically, it generates n_samples_per_param
+    simulations for each theta, then computes the pairwise distances and takes the median of it. The returned value
+    is the median (by default; you can also compute the mean if preferred) of the latter over all considered values
+    of theta.  """
+
+    # generate the values of theta from prior
+    theta_vect, simulations_theta_vect = DrawFromPrior([model_abc], backend, seed=seed).sample(n_theta, 1)
+    simulations_theta_vect = simulations_theta_vect.reshape(n_theta, num_vars, -1)  # last index is the timestep
+    n_timestep = simulations_theta_vect.shape[2]
+
+    distances_median = np.zeros(n_timestep)
+    for timestep_index in range(n_timestep):
+        simulations = simulations_theta_vect[:, :, timestep_index]
+        distances = np.linalg.norm(
+            simulations.reshape(1, n_theta, -1) - simulations.reshape(n_theta, 1, -1), axis=-1)[
+            ~np.eye(n_theta, dtype=bool)].reshape(-1)
+        # take the median over the second index:
+        distances_median[timestep_index] = np.median(distances)
+
+    return_list = []
+    if "median" in return_values:
+        return_list.append(np.median(distances_median.flatten()))
+    if "mean" in return_values:
+        return_list.append(np.mean(distances_median.flatten()))
+
+    return return_list[0] if len(return_list) == 1 else return_list
+
+
 def kde_plot(ax, post_samples, label, color=None):
     xmin, xmax = np.min(post_samples), np.max(post_samples)
     positions = np.linspace(xmin, xmax, 100)
     gaussian_kernel = gaussian_kde(post_samples[:, 0])
     ax.plot(positions, gaussian_kernel(positions), linestyle='solid', lw="1", alpha=1,
             label=label, color=color)
+
+
+def subsample_trace(trace, size=1000):
+    if len(trace) < size:
+        return trace
+    return trace[np.random.choice(range(len(trace)), size=size, replace=False)]
+
+
+class DrawFromParamValues(InferenceMethod):
+    model = None
+    rng = None
+    n_samples = None
+    backend = None
+
+    n_samples_per_param = None  # this needs to be there otherwise it does not instantiate correctly
+
+    def __init__(self, root_models, backend, seed=None, discard_too_large_values=True):
+        self.model = root_models
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.discard_too_large_values = discard_too_large_values
+        # An object managing the bds objects
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+
+    def sample(self, param_values):
+
+        self.param_values = param_values  # list of parameter values
+        self.n_samples = len(param_values)
+        self.accepted_parameters_manager.broadcast(self.backend, 1)
+
+        # now generate an array of seeds that need to be different one from the other. One way to do it is the
+        # following.
+        # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
+        # Note that this is not perfect; you still have small possibility of having some seeds that are equal. Is there
+        # a better way? This would likely not change much the performance
+        # An idea would be to use rng.choice but that is too
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
+        # check how many equal seeds there are and remove them:
+        sorted_seed_arr = np.sort(seed_arr)
+        indices = sorted_seed_arr[:-1] == sorted_seed_arr[1:]
+        # print("Number of equal seeds:", np.sum(indices))
+        if np.sum(indices) > 0:
+            # the following can be used to remove the equal seeds in case there are some
+            sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
+        # print("Number of equal seeds after update:", np.sum(sorted_seed_arr[:-1] == sorted_seed_arr[1:]))
+        rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
+        # zip with the param values:
+        data_arr = list(zip(self.param_values, rng_arr))
+        data_pds = self.backend.parallelize(data_arr)
+
+        parameters_simulations_pds = self.backend.map(self._sample_parameter, data_pds)
+        parameters_simulations = self.backend.collect(parameters_simulations_pds)
+        parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
+
+        parameters = np.array(parameters).squeeze()
+        simulations = np.array(simulations).squeeze()
+
+        return parameters, simulations
+
+    def _sample_parameter(self, data, npc=None):
+        theta, rng = data[0], data[1]
+
+        ok_flag = False
+
+        while not ok_flag:
+            # assume that we have one single model
+            y_sim = self.model[0].forward_simulate(theta, 1, rng=rng)
+            # self.sample_from_prior(rng=rng)
+            # theta = self.get_parameters(self.model)
+            # y_sim = self.simulate(1, rng=rng, npc=npc)
+
+            # if there are no potential infinities there (or if we do not check for those).
+            # For instance, Lorenz model may give too large values sometimes (quite rarely).
+            if np.sum(np.isinf(np.array(y_sim).astype("float32"))) > 0 and self.discard_too_large_values:
+                print("y_sim contained too large values for float32; simulating again.")
+            else:
+                ok_flag = True
+
+        return theta, y_sim

@@ -1,13 +1,13 @@
-import numpy as np
 import os
 import sys
 
+import numpy as np
 from abcpy.output import Journal
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
 from src.parsers import parser_plots_marginals_and_traces
-from src.utils import define_default_folders_scoring_rules, extract_params_from_journal_normal, kde_plot
+from src.utils import define_default_folders, extract_params_from_journal_normal, kde_plot
 from src.models import instantiate_model
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ if model not in ["normal_location_misspec"]:
 model_abc, statistics, param_bounds = instantiate_model(model)
 param_names_latex = [r'$\theta$']
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 
@@ -162,6 +162,7 @@ elif len(epsilon_list) - 1 == 1:
 axes[0, 0].set_ylim(ymin=0, ymax=5)
 
 std_matrix = np.zeros((len(epsilon_list[1:]), len(outliers_list[1:]), len(methods_list)))
+acc_rates_matrix = np.zeros((len(epsilon_list[1:]), len(outliers_list[1:]), len(methods_list)))
 
 for eps_index, epsilon in enumerate(epsilon_list[1:]):
     # print(epsilon)
@@ -176,6 +177,7 @@ for eps_index, epsilon in enumerate(epsilon_list[1:]):
                 journal = Journal.fromFile(filename + ".jnl")
                 # print("Std dev", np.sqrt(journal.posterior_cov()[0]))
                 std_matrix[eps_index, outlier_index, method_idx] = np.sqrt(journal.posterior_cov()[0])
+                acc_rates_matrix[eps_index, outlier_index, method_idx] = journal.configuration["acceptance_rates"][0]
 
                 # extract posterior samples
                 post_samples = extract_par_fcn(journal)
@@ -205,6 +207,19 @@ for eps_index, epsilon in enumerate(epsilon_list[1:]):
 plt.savefig(inference_folder + f"Overall_plot_burnin_{burnin}_n-samples_{n_samples}_n-sam-per-param_"
                                f"{n_samples_per_param}_thinning_{thin}_2.pdf")
 
+print("ACCEPTANCE RATES")
+for method_idx, method in enumerate(methods_list):
+    print(method)
+    for eps_index, epsilon in enumerate(epsilon_list[1:]):
+        print(epsilon)
+        strings = [f"${std:.3f}$" for std in acc_rates_matrix[eps_index, :, method_idx]]
+        strings2 = [" & " for i in range(len(strings))]
+        strings3 = strings2 + strings
+        strings3[::2] = strings2
+        strings3[1::2] = strings
+        print("".join(strings3))
+
+print("STANDARD DEVIATION")
 for method_idx, method in enumerate(methods_list):
     print(method)
     for eps_index, epsilon in enumerate(epsilon_list[1:]):
@@ -215,3 +230,8 @@ for method_idx, method in enumerate(methods_list):
         strings3[::2] = strings2
         strings3[1::2] = strings
         print("".join(strings3))
+
+
+
+
+

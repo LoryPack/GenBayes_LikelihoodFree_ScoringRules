@@ -26,8 +26,7 @@ for ((k2=0;k2<${#LOCATION_VALUES[@]};++k2)); do
     location=${LOCATION_VALUES[k2]}
 
     python3 scripts/generate_obs_misspec.py $model --n_observations_per_param 100 --observation_folder $observation_folder \
-     --epsilon $epsilon \
-     --outliers_location $location
+     --epsilon $epsilon  --outliers_location $location
 
 done
 done
@@ -64,6 +63,7 @@ burnin=40000
 n_samples=20000
 n_samples_per_param=500
 n_samples_in_obs=100
+NGROUP=50
 prop_size=2.0
 
 # loop over METHODS:
@@ -86,6 +86,8 @@ for ((j=0;j<${#METHODS[@]};++j)); do
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \
         --load \
+        --n_groups $NGROUP \
+        --plot_trace \
         --prop_size ${prop_size}"
 
     if [[ "$method" == "KernelScore" ]]; then
@@ -113,7 +115,7 @@ done
 
 # PLOTS
 echo PLOTS
-# Figures 5 and 10
+# Figures 5 and 11
 python3 scripts/plot_location_normal_misspec.py $model \
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \
@@ -121,8 +123,8 @@ python3 scripts/plot_location_normal_misspec.py $model \
         --n_samples_per_param $n_samples_per_param \
         --burnin $burnin \
         --true_posterior_folder $true_posterior_folder
-#
-# # Figure 11 and 12
+
+# # Figure 12 and 13
 python3 scripts/plot_location_normal_misspec_SL.py $model \
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \
@@ -152,6 +154,7 @@ for ((j=0;j<${#METHODS[@]};++j)); do
         --inference_folder $inference_folder2 \
         --observation_folder $observation_folder \
         --load \
+        --n_groups $NGROUP \
         --prop_size ${prop_size}"
 
     if [[ "$method" == "KernelScore" ]]; then

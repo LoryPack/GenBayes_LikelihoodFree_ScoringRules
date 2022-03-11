@@ -19,9 +19,17 @@ echo Multivariate Cauchy G-K
 echo misspecified normal location
 ./scripts/normal_location_misspec.sh
 
+echo Lorenz96
+./scripts/Lorenz96.sh
+
+echo Recruitment, Boom and Bust
+./scripts/RecruitmentBoomBust.sh
+
 echo MA2
 ./scripts/MA2.sh
 
 echo MG1
 ./scripts/MG1.sh
 
+echo Multiple m experiments
+./scripts/different_m_values.sh

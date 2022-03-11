@@ -19,6 +19,7 @@ echo Inference
 burnin=0
 n_samples=10000
 n_samples_per_param=500
+NGROUP=500
 
 # loop over METHODS:
 
@@ -49,14 +50,8 @@ for ((k2=0;k2<${#SEEDLIST[@]};++k2)); do
     --seed $seed \
     --prop_size $prop_size \
     --sigma 52.37 \
-    --add_seed_in_filename "
-
-    if [[ "$method" == "KernelScore" ]]; then
-            runcommand="$runcommand --weight 52.29"
-    fi
-    if [[ "$method" == "EnergyScore" ]]; then
-            runcommand="$runcommand --weight 0.16"
-    fi
+    --add_seed_in_filename \
+    --n_group $NGROUP "
 
     $runcommand >${FOLDER}out_MCMC_${method}_${n_samples_in_obs}
 
@@ -64,7 +59,7 @@ done
 done
 
 
-# Figure 8
+# Figure 9
 python scripts/plot_traces_multiple_seeds.py $model \
     --inference_folder $inference_folder \
     --observation_folder $observation_folder\

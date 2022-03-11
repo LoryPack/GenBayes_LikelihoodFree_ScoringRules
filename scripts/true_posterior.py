@@ -1,13 +1,16 @@
+import os
+import sys
 from time import sleep
-import os, sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc3 as pm
 from theano import tensor as tt
+
 sys.path.append(os.getcwd())  # add the root of this project to python path
 from src.models import ma2_log_lik_for_mcmc
 from src.parsers import parser_true_posterior
-from src.utils import LogLike, define_default_folders_scoring_rules, transform_R_to_theta_MA2
+from src.utils import LogLike, define_default_folders, transform_R_to_theta_MA2
 
 parser = parser_true_posterior()
 parser.add_argument('--epsilon', type=float, default=0, help='Fraction of outliers (for location normal experiment).')
@@ -37,7 +40,7 @@ if sleep_time > 0:
 if model not in ["normal_location_misspec", "MA2"]:
     raise NotImplementedError
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 

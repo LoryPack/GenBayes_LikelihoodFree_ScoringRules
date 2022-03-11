@@ -11,7 +11,7 @@ from tabulate import tabulate
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
-from src.utils import define_default_folders_scoring_rules, extract_params_from_journal_MG1, \
+from src.utils import define_default_folders, extract_params_from_journal_MG1, \
     extract_params_from_journal_MA2
 from src.parsers import parser_bivariate_plots
 
@@ -47,7 +47,7 @@ elif model == "MA2":
     n_params = 2
     extract_par_fcn = extract_params_from_journal_MA2
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 
@@ -72,7 +72,7 @@ for method in methods_list:
             weightlist = [12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
     elif method == "KernelScore":
         if model == "MG1":
-            weightlist = [500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000]
+            weightlist = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900]
         elif model == "MA2":
             weightlist = [250, 300, 350, 400, 450, 500, 550, 600, 620, 640]
 
@@ -142,7 +142,7 @@ for method in methods_list:
         # axes[0, weight_idx].set_title(r"$w={}$, Tr $ \Sigma={:.2f}$".format(int(weight), cov_trace), size=title_size)
         axes[0, weight_idx].set_title(r"$w={}$".format(int(weight)), size=title_size)
         if model == "MG1" and method == "KernelScore":
-            axes[0, weight_idx].set_title(r"$\tilde w={}$".format(int(weight / 100)), size=title_size)
+            axes[0, weight_idx].set_title(r"$\tilde w={}$".format(int(weight / 10)), size=title_size)
         # axes[0, weight_idx].set_title(r"$w={}\cdot 10^{3}$".format(int(weight)), size=title_size)
 
         # now need to make KDE and plot in the correct panel, with different color corresponding to different n_obs

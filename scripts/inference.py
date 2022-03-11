@@ -3,15 +3,17 @@ import sys
 from time import time, sleep
 
 import numpy as np
+import pyreadr
 from abcpy.backends import BackendDummy, BackendMPI
-from abcpy.inferences import PMC, MCMCMetropoliHastings
+from abcpy.inferences import PMC  # , MCMCMetropoliHastings
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
 from src.models import instantiate_model
 from src.parsers import parser_inference
-from src.utils import define_default_folders_scoring_rules, dict_implemented_scoring_rules, load_journal_if_flag, \
+from src.utils import define_default_folders, dict_implemented_scoring_rules, load_journal_if_flag, \
     heuristics_estimate_w, estimate_bandwidth, transform_journal
+from src.correlated_MCMC import MCMCMetropoliHastings
 import logging
 import matplotlib.pyplot as plt
 
@@ -20,10 +22,19 @@ parser.add_argument('--epsilon', type=float, default=0, help='Fraction of outlie
 parser.add_argument('--outliers_location', type=float, default=1,
                     help='Location around where the outliers are located (for the normal location experiment)')
 parser.add_argument('--inipoint', type=float, default=None, help='Initial MCMC point')
+parser.add_argument('--n_groups_correlated_randomness', type=int, default=None,
+                    help='Number of groups for the correlated pseudo-marginal MCMC. Default is None, in which case it '
+                         'does not use that.')
 parser.add_argument('--sigma_kernel', type=float, default=None, help='If provided, use this as bandwidth for Gaussian '
                                                                      'kernel in Kernel Score posterior')
 parser.add_argument('--add_seed_in_filename', action="store_true", help='Adds the seed in the filename of journal.')
 parser.add_argument('--add_weight_in_filename', action="store_true", help='Adds the weight in the filename of journal.')
+parser.add_argument('--add_propsize_in_filename', action="store_true",
+                    help='Adds the weight in the filename of journal.')
+parser.add_argument('--add_n_groups_in_filename', action="store_true",
+                    help='Adds the n_groups for the correlated MCMC in the filename of journal.')
+parser.add_argument('--start_from_true_par_value', action="store_true",
+                    help='Start the MCMC from true parameter value.')
 
 args = parser.parse_args()
 
@@ -56,9 +67,13 @@ adapt_proposal_cov_interval = args.adapt_proposal_cov_interval
 epsilon = args.epsilon
 outliers_location = args.outliers_location
 inipoint = args.inipoint
+n_groups_correlated_randomness = args.n_groups_correlated_randomness
 sigma_kernel = args.sigma_kernel
 add_seed_in_filename = args.add_seed_in_filename
 add_weight_in_filename = args.add_weight_in_filename
+add_propsize_in_filename = args.add_propsize_in_filename
+add_n_groups_in_filename = args.add_n_groups_in_filename
+start_from_true_par_value = args.start_from_true_par_value
 
 if sleep_time > 0:
     print("Wait for {} minutes...".format(sleep_time))
@@ -71,7 +86,7 @@ if method not in dict_implemented_scoring_rules().keys():
 if algorithm not in ["PMC", "MCMC"]:
     raise NotImplementedError
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 
@@ -84,12 +99,25 @@ model_abc, statistics, param_bounds = instantiate_model(model)
 
 # load observation
 theta_obs = np.load(observation_folder + "theta_obs.npy")
-if "misspec" not in model:
-    x_obs = np.load(observation_folder + "x_obs.npy")
+if 0 < epsilon < 0.1:
+    if model == "normal_location_misspec":
+        x_obs = np.load(
+            observation_folder + f"x_obs_epsilon_{epsilon:.2f}_outliers_loc_{outliers_location:.1f}.npy")
+    elif "outlier" in model:
+        x_obs = np.load(observation_folder + f"x_obs_epsilon_{epsilon:.2f}.npy")
+    else:
+        x_obs = np.load(observation_folder + "x_obs.npy")
 else:
-    x_obs = np.load(observation_folder + "x_obs_epsilon_{:.1f}_outliers_loc_{:.1f}.npy".format(epsilon, outliers_location))
+    if model == "normal_location_misspec":
+        x_obs = np.load(
+            observation_folder + f"x_obs_epsilon_{epsilon:.1f}_outliers_loc_{outliers_location:.1f}.npy")
+    elif "outlier" in model:
+        x_obs = np.load(observation_folder + f"x_obs_epsilon_{epsilon:.1f}.npy")
+    else:
+        x_obs = np.load(observation_folder + "x_obs.npy")
 
-x_obs = [x_obs[i] for i in range(n_samples_in_obs)]  # only keep the first observation element from the observation
+x_obs = [x_obs[i] for i in
+         range(n_samples_in_obs)]  # only keep the first n_samples_in_obs elements from the observation
 # print("Observation shape", len(x_obs), x_obs[0].shape)
 
 SR_kwargs = {}
@@ -99,7 +127,7 @@ if method == "KernelScore":
     else:
         # need here to estimate the kernel bandwidth
         start = time()
-        SR_kwargs["sigma"] = estimate_bandwidth(model_abc, backend, seed=seed + 1, n_theta=1000,
+        SR_kwargs["sigma"] = estimate_bandwidth(model_abc, statistics, backend, seed=seed + 1, n_theta=1000,
                                                 n_samples_per_param=n_samples_per_param, return_values=["median"])
         print(f"Estimated sigma for kernel score {SR_kwargs['sigma']:.4f}; it took {time() - start:.4f} seconds")
 
@@ -145,22 +173,53 @@ else:
         filename += f"_seed_{seed}"
     if add_weight_in_filename:
         filename += f"_weight_{weight}"
-    if "misspec" in model:
-        filename += f"_epsilon_{epsilon:.1f}_outliers_loc_{outliers_location:.1f}"
+    if add_propsize_in_filename:
+        filename += f"_propsize_{prop_size}"
+    if add_n_groups_in_filename and n_groups_correlated_randomness is not None:
+        filename += f"_n_groups_{n_groups_correlated_randomness}"
+    if 0 < epsilon < 0.1:
+        if model == "normal_location_misspec":
+            filename += f"_epsilon_{epsilon:.2f}_outliers_loc_{outliers_location:.1f}"
+        elif "outlier" in model:
+            filename += f"_epsilon_{epsilon:.2f}"
+    else:
+        if model == "normal_location_misspec":
+            filename += f"_epsilon_{epsilon:.1f}_outliers_loc_{outliers_location:.1f}"
+        elif "outlier" in model:
+            filename += f"_epsilon_{epsilon:.1f}"
 
     loaded, journal = load_journal_if_flag(load_journal_if_available, filename + ".jnl")
 
     if not loaded:
         sampler_instance = MCMCMetropoliHastings(root_models=[model_abc], loglikfuns=[scoring_rule],
                                                  backend=backend, seed=seed)
-        cov_matrices = [np.eye(len(sampler_instance.parameter_names)) * prop_size]  # diagonal cov matrix
-        inipoint = np.array(
-            [inipoint]) if inipoint is not None else None  # use the scalar initial point otherwise
+        if "RecruitmentBoomBust" in model:
+            cov_matrix_BSL = pyreadr.read_r(results_folder + "/cov_rw_bsl_transform1.rds")[None].to_numpy()
+            cov_matrix_semiBSL = pyreadr.read_r(results_folder + "/cov_rw_sp_transform1.rds")[None].to_numpy()
+            # they look quite similar; use them now in the inference scheme; how to use them for the Kernel and
+            # Energy Score? Take the average of them, not sure whether very meaningful
+            if method == "SyntheticLikelihood":
+                cov_matrices = [prop_size * cov_matrix_BSL]
+            elif method == "semiBSL":
+                cov_matrices = [prop_size * cov_matrix_semiBSL]
+            else:  # method == "KernelScore"
+                cov_matrices = [prop_size * (cov_matrix_semiBSL + cov_matrix_BSL)]
+        else:
+            cov_matrices = [np.eye(len(sampler_instance.parameter_names)) * prop_size]  # diagonal cov matrix
+        if "RecruitmentBoomBust" in model:
+            inipoint = np.array([0.4, 50, 0.09, 0.1])  # same as in An et al. 2020
+        else:
+            inipoint = np.array(
+                [inipoint]) if inipoint is not None else None  # use the scalar initial point otherwise
+        if start_from_true_par_value:
+            inipoint = theta_obs
         journal = sampler_instance.sample([x_obs], n_samples=n_samples, n_samples_per_param=n_samples_per_param,
                                           burnin=burnin, bounds=param_bounds,
                                           adapt_proposal_cov_interval=adapt_proposal_cov_interval,
                                           cov_matrices=cov_matrices,
-                                          iniPoint=inipoint)
+                                          iniPoint=inipoint,
+                                          n_groups_correlated_randomness=n_groups_correlated_randomness,
+                                          adapt_proposal_after_burnin=True)
         journal = transform_journal(journal, model)  # transform (reparametrize) journal
         journal.save(filename + '.jnl')
 
@@ -192,8 +251,7 @@ if plot_post:
         logging.getLogger(l_name).disabled = True
     journal.plot_posterior_distr(
         true_parameter_values=theta_obs if model not in ["univariate_Cauchy_g-and-k", "Cauchy_g-and-k"] else None,
-        show_samples=False,
-        parameters_to_show=parameters_to_show, path_to_save=filename + '.png',
+        show_samples=False, parameters_to_show=parameters_to_show, path_to_save=filename + '.png',
         ranges_parameters=bounds_for_plot)
     # journal.plot_posterior_distr(true_parameter_values=theta_obs, show_samples=False,
     #                              parameters_to_show=parameters_to_show, path_to_save=filename + 'double_only.png',

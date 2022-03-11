@@ -9,8 +9,8 @@ from abcpy.output import Journal
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
-from src.utils import define_default_folders_scoring_rules, extract_params_from_journal_MG1, \
-    extract_params_from_journal_MA2
+from src.utils import define_default_folders, extract_params_from_journal_MG1, \
+    extract_params_from_journal_MA2, extract_params_from_journal_Lorenz96
 
 from src.parsers import parser_bivariate_plots
 
@@ -30,23 +30,41 @@ fill = not args.no_fill
 n_samples_in_obs = 1
 show_samples = False
 
-if model not in ["MG1", "MA2"]:
-    raise NotImplementedError
-
 if model == "MG1":
     ranges_parameters = param_bounds = {'theta1': [0, 4.5], 'theta2': [0, 11], 'theta3': [0.12, 1 / 3]}
     names = param_names = list(param_bounds.keys())
     param_names_latex = [r'$\theta^1$', r'$\theta^2$', r'$\theta^3$', ]
     n_params = 3
     extract_par_fcn = extract_params_from_journal_MG1
+    methods_list = ["SyntheticLikelihood", "semiBSL", "KernelScore", "EnergyScore", "True posterior"]
 elif model == "MA2":
     ranges_parameters = param_bounds = {'theta1': [-2, 2], 'theta2': [-1, 1]}
     names = param_names = list(param_bounds.keys())
     param_names_latex = [r'$\theta^1$', r'$\theta^2$', ]
     n_params = 2
     extract_par_fcn = extract_params_from_journal_MA2
+    methods_list = ["SyntheticLikelihood", "semiBSL", "KernelScore", "EnergyScore", "True posterior"]
+elif "Lorenz96" in model:
+    theta1_min = 1.4
+    theta1_max = 2.2
+    theta2_min = 0
+    theta2_max = 1
 
-default_root_folder = define_default_folders_scoring_rules()
+    sigma_e_min = 1.5
+    sigma_e_max = 2.5
+    phi_min = 0
+    phi_max = 1
+    ranges_parameters = param_bounds = {'theta1': [theta1_min, theta1_max], 'theta2': [theta2_min, theta2_max],
+                                        'sigma_e': [sigma_e_min, sigma_e_max], 'phi': [phi_min, phi_max]}
+    names = param_names = list(param_bounds.keys())
+    param_names_latex = [r'$\theta^1$', r'$\theta^2$', r'$\sigma_e$', r'$\phi$']
+    n_params = 4
+    extract_par_fcn = extract_params_from_journal_Lorenz96
+    methods_list = ["SyntheticLikelihood", "semiBSL", "KernelScore", "EnergyScore"]
+else:
+    raise NotImplementedError
+
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 
@@ -54,12 +72,12 @@ observation_folder = results_folder + '/' + args.observation_folder + '/'
 inference_folder = results_folder + '/' + args.inference_folder + '/'
 true_posterior_folder = results_folder + '/' + args.true_posterior_folder + '/'
 
-methods_list = ["SyntheticLikelihood", "semiBSL", "KernelScore", "EnergyScore", "True posterior"]
-
 # load observation
-theta_obs = np.load(observation_folder + "theta_obs.npy")
-true_parameter_values = theta_obs
-assert theta_obs.shape[0] == n_params
+true_parameter_values = None
+if "misspec" not in model:
+    theta_obs = np.load(observation_folder + "theta_obs.npy")
+    true_parameter_values = theta_obs
+    assert theta_obs.shape[0] == n_params
 
 # we will do plot in the following way: we need to make two panels for the all possible parameter combinations, and we
 # have 5 methods (the true posterior + other 4). Thwn make a (n_param_combination)xlen(methods) plot.
@@ -102,7 +120,7 @@ for method_idx, method in enumerate(methods_list):
                 filename += f"_weight_{12.9689}"
         elif model == "MG1":
             if method == "KernelScore":
-                filename += f"_weight_{597.0734}"
+                filename += f"_weight_{797.1406}"
             elif method == "EnergyScore":
                 filename += f"_weight_{10.9802}"
 
@@ -116,6 +134,8 @@ for method_idx, method in enumerate(methods_list):
 
         # create dataframe for seaborn
         df = pd.DataFrame(post_samples, columns=names)
+
+        print("Acceptance rate", journal.configuration["acceptance_rates"][0])
     else:
         # load the true posterior data here
         if model == "MG1":

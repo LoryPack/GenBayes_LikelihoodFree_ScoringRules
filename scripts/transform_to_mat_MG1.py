@@ -6,7 +6,7 @@ import numpy as np
 from scipy.io import savemat
 
 sys.path.append(os.getcwd())  # stupid but needed on my laptop for some weird reason
-from src.utils import define_default_folders_scoring_rules
+from src.utils import define_default_folders
 
 """Transforms the observation to the matlab format"""
 
@@ -18,7 +18,7 @@ args = parser.parse_args()
 
 results_folder = args.root_folder
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder["MG1"]
 

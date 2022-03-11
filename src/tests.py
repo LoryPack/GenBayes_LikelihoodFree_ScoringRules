@@ -1,14 +1,12 @@
-import numpy as np
 import unittest
 
+import numpy as np
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
-from abcpy.approx_lhd import SynLikelihood, SemiParametricSynLikelihood
+
 from src.models import instantiate_model
 from src.scoring_rules import EnergyScore, UnivariateContinuousRankedProbabilityScoreEstimate, KernelScore
-from time import time
-import matplotlib.pyplot as plt
 
 
 class InstantiateModelsTests(unittest.TestCase):

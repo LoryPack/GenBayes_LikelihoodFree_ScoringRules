@@ -25,6 +25,7 @@ burnin=10000
 n_samples=20000
 n_samples_per_param=500
 n_samples_in_obs=1
+NGROUP=50
 
 # INFERENCE WITH BSL AND SEMIBSL
 METHODS=( SyntheticLikelihood semiBSL )
@@ -53,6 +54,7 @@ for ((k=0;k<${#METHODS[@]};++k)); do
     --observation_folder $observation_folder \
     --load \
     --prop_size $PROPSIZE \
+    --n_group $NGROUP \
      >${FOLDER}out_MCMC_${method}_steps_${n_samples}
 done
 
@@ -81,7 +83,7 @@ for ((j=0;j<${#METHODS[@]};++j)); do
 
      if [[ "$method" == "KernelScore" ]]; then
         WEIGHTLIST=( 207.6652 250 300 350 400 450 500 550 600 620 640 )
-        PROPSIZE=( 1 1 0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.15 0.15 )
+        PROPSIZES=( 1 1 0.9 0.8 0.7 0.6 0.5 0.4 0.3 0.15 0.15 )
      fi
 
      if [[ "$method" == "EnergyScore" ]]; then
@@ -111,14 +113,15 @@ for ((l=0;l<${#WEIGHTLIST[@]};++l)); do
         --load \
         --sigma 12.7715 \
         --add_weight_in_filename \
-        --seed 123 "
+        --seed 123 \
+        --n_group $NGROUP "
 
     $runcommand >${FOLDER}out_MCMC_${method}_weight_${WEIGHT}
 
 done
 done
 
-# Figure 6
+# Figure 18
 python scripts/plot_bivariate.py $model \
     --inference_folder $inference_folder \
     --true_posterior_folder $true_posterior_folder \
@@ -127,7 +130,7 @@ python scripts/plot_bivariate.py $model \
     --n_samples_per_param $n_samples_per_param \
     --observation_folder $observation_folder
 
-# Figure 13
+# Figure 19
 python3 scripts/plot_bivariate_diff_weights.py $model \
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \

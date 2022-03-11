@@ -19,6 +19,7 @@ echo Inference
 burnin=10000
 n_samples=100000
 n_samples_per_param=500
+NGROUP=500
 
 # loop over METHODS:
 
@@ -46,7 +47,7 @@ for ((k2=0;k2<${#N_SAMPLES_IN_OBS[@]};++k2)); do
      if [[ "$method" == "SyntheticLikelihood" ]]; then
             PROPSIZE=${PROPSIZES_BSL[k2]}
      fi
-#      echo prop_size $PROPSIZE
+     echo prop_size $PROPSIZE
 
     runcommand="python scripts/inference.py \
     $model  \
@@ -60,6 +61,7 @@ for ((k2=0;k2<${#N_SAMPLES_IN_OBS[@]};++k2)); do
     --sigma 5.5 \
     --prop_size $PROPSIZE \
     --load \
+    --n_groups $NGROUP \
      "
 
     if [[ "$method" == "KernelScore" ]]; then
@@ -81,4 +83,19 @@ python scripts/plot_marginals_n_obs.py $model \
     --thin 10 \
     --burnin $burnin \
     --n_samples $n_samples \
-    --n_samples_per_param $n_samples_per_param
+    --n_samples_per_param $n_samples_per_param  > ${FOLDER}/acc_rates.txt
+
+
+n_samples_in_obs=100  # consider the largest number of observations.
+python scripts/predictive_validation_SRs.py \
+    $model  \
+    --n_samples $n_samples  \
+    --burnin $burnin  \
+    --n_samples_per_param $n_samples_per_param \
+    --n_samples_in_obs $n_samples_in_obs \
+    --inference_folder $inference_folder \
+    --observation_folder $observation_folder \
+    --seed 456 \
+    --subsample 10000 \
+    --load \
+    --sigma 5.5 >  ${FOLDER}/predictive.txt

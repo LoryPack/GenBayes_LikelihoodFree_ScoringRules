@@ -103,6 +103,9 @@ def parser_estimate_w():
     parser.add_argument('--n_theta', type=int, default=1000, help="Number of prior samples to generate to estimate w.")
     parser.add_argument('--n_samples_per_param', type=int, default=100)
     parser.add_argument('--reference_method', type=str, default="SyntheticLikelihood")
+    parser.add_argument('--sigma_kernel', type=float, default=None,
+                        help='If provided, use this as bandwidth for Gaussian '
+                             'kernel in Kernel Score posterior')
     return parser
 
 

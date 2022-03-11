@@ -27,8 +27,7 @@ Additionally, running:
 
 reproduces all experiments by calling the different bash scripts. 
 
-
-As each inference is run on a single core, there is no need to use big parallel machines. However, runnning everything on one single core can be slow; parallelization can be used to run different inferences at the same time and thus reducing computing time. 
+The scripts work on a single core. However, runnning everything on one single core can be slow; parallelization can be used to run different inferences at the same time and thus reducing computing time. 
     
 ### Requirements
 The inference routines with the Scoring Rules are implemented using the [`ABCpy` Python package](https://github.com/eth-cscs/abcpy).

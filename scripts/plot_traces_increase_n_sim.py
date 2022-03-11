@@ -7,7 +7,7 @@ from abcpy.output import Journal
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
 from src.parsers import parser_plots_marginals_and_traces
-from src.utils import define_default_folders_scoring_rules, extract_params_from_journal_gk, \
+from src.utils import define_default_folders, extract_params_from_journal_gk, \
     extract_params_from_journal_multiv_gk
 from src.models import instantiate_model
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ model_abc, statistics, param_bounds = instantiate_model(model)
 param_names = list(param_bounds.keys())
 param_names_latex = [r'$A$', r'$B$', r'$g$', r'$k$', r'$\rho$']
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 
@@ -45,18 +45,13 @@ if model == "univariate_g-and-k":
     extract_par_fcn = extract_params_from_journal_gk
 elif model == "g-and-k":
     methods_list = ["SyntheticLikelihood", "semiBSL"]
-    n_simulations_list_lists = [[500, 1000, 1500, 2000, 2500, 3000, 30000], [500, 1000, 1500, 2000, 2500, 3000]]
+    n_simulations_list_lists = [[500, 1000, 1500, 2000, 2500, 3000, 30000], [500, 1000, 1500, 2000, 2500, 3000, 30000]]
     n_params = 5
     extract_par_fcn = extract_params_from_journal_multiv_gk
 
 # load observation
 theta_obs = np.load(observation_folder + "theta_obs.npy")
 assert theta_obs.shape[0] == n_params
-
-# do plots:
-# one single fig, ax (problematic for titles)
-# fig, axes = plt.subplots(nrows=len(methods_list), ncols=n_params, figsize=(n_params * 3, len(methods_list) * 2), )
-# sharex="row")
 
 # make big subplots only for putting titles
 fig, big_axes = plt.subplots(figsize=(n_params * 3, len(methods_list) * 2.5), nrows=len(methods_list), ncols=1)

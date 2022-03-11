@@ -35,6 +35,7 @@ burnin=10000
 n_samples=20000
 n_samples_per_param=1000
 n_samples_in_obs=1
+NGROUP=50
 
 # INFERENCE WITH BSL AND SEMIBSL
 METHODS=( SyntheticLikelihood semiBSL )
@@ -63,6 +64,7 @@ for ((k=0;k<${#METHODS[@]};++k)); do
     --observation_folder $observation_folder \
     --load \
     --prop_size $PROPSIZE \
+    --n_group $NGROUP \
      >${FOLDER}out_MCMC_${method}_steps_${n_samples}
 done
 
@@ -83,6 +85,9 @@ for ((k=0;k<${#METHODS[@]};++k)); do
 
 done
 
+# Estimated sigma for kernel score 3.6439; it took 143.5322 seconds
+# Estimated w 797.1406; it took 202.8785 seconds
+
 # Perform inference with different weights; the first weight value is what we find with our heuristics
 FOLDER=results/${model}/${inference_folder}/
 
@@ -90,8 +95,8 @@ for ((j=0;j<${#METHODS[@]};++j)); do
     method=${METHODS[j]}
 
      if [[ "$method" == "KernelScore" ]]; then
-        WEIGHTLIST=( 597.0734 500 1000 1500 2000 2500 3000 3500 4000 4500 5000 5500 6000 6500 7000 7500 8000 )
-        PROPSIZE=( 1 1 0.8 0.5 0.3 0.2 0.1 0.1 0.05 0.05 0.04 0.02 0.02 0.01 0.005 0.005 0.002 )
+        WEIGHTLIST=( 50 100 150 200 250 300 350 400 450 500 550 600 700 797.1406 800 900  )
+        PROPSIZES=( 1 1 0.4 0.3 0.2 0.1 0.07 0.05 0.05 0.05 0.02 0.02 0.01 0.01 0.01 0.01 )
      fi
 
      if [[ "$method" == "EnergyScore" ]]; then
@@ -106,7 +111,7 @@ for ((l=0;l<${#WEIGHTLIST[@]};++l)); do
 
     echo $method $WEIGHT
 
-    # we fix sigma=28.6955 for the kernel SR (which is what our strategy gives) to save computational time
+    # we fix sigma=3.6439 for the kernel SR (which is what our strategy gives) to save computational time
     runcommand="python scripts/inference.py \
         $model \
         $method \
@@ -119,16 +124,17 @@ for ((l=0;l<${#WEIGHTLIST[@]};++l)); do
         --weight $WEIGHT \
         --prop_size $PROPSIZE \
         --load \
-        --sigma 28.6955 \
+        --sigma 3.6439 \
         --add_weight_in_filename \
-        --seed 123 "
+        --seed 123 \
+        --n_group $NGROUP"
 
     $runcommand >${FOLDER}out_MCMC_${method}_weight_${WEIGHT}
 
 done
 done
 
-# Figure 7
+# Figure 20
 python scripts/plot_bivariate.py $model \
     --inference_folder $inference_folder \
     --true_posterior_folder $true_posterior_folder \
@@ -137,7 +143,7 @@ python scripts/plot_bivariate.py $model \
     --n_samples_per_param $n_samples_per_param \
     --observation_folder $observation_folder
 
-# Figure 14
+# Figure 21
 python3 scripts/plot_bivariate_diff_weights.py $model \
         --inference_folder $inference_folder \
         --observation_folder $observation_folder \

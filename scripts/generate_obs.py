@@ -1,13 +1,14 @@
-import numpy as np
+import os
+import sys
 from time import sleep
 
-import os, sys
+import numpy as np
 from abcpy.statistics import Identity
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 from src.models import instantiate_model
 from src.parsers import parser_generate_obs_fixed_par
-from src.utils import define_default_folders_scoring_rules, define_exact_param_values
+from src.utils import define_default_folders, define_exact_param_values
 
 parser = parser_generate_obs_fixed_par()
 args = parser.parse_args()
@@ -19,7 +20,7 @@ n_observations_per_param = args.n_observations_per_param
 sleep_time = args.sleep
 results_folder = args.root_folder
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 
 exact_param_values_dict = define_exact_param_values()
 exact_param_values = exact_param_values_dict[model]

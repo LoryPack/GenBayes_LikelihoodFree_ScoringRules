@@ -1,13 +1,15 @@
-import numpy as np
+import os
+import sys
 from time import sleep
 
-import os, sys
+import matplotlib.pyplot as plt
+import numpy as np
 from abcpy.statistics import Identity
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 from src.models import instantiate_model
 from src.parsers import parser_generate_obs_fixed_par
-from src.utils import define_default_folders_scoring_rules, define_exact_param_values
+from src.utils import define_default_folders, define_exact_param_values
 
 parser = parser_generate_obs_fixed_par()
 parser.add_argument('--epsilon', type=float, default=0, help='Fraction of outliers')
@@ -25,12 +27,12 @@ results_folder = args.root_folder
 epsilon = args.epsilon
 outliers_location = args.outliers_location
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 
 exact_param_values_dict = define_exact_param_values()
 exact_param_values = exact_param_values_dict[model]
 
-if model not in ["normal_location_misspec"]:
+if model not in ["normal_location_misspec", "Lorenz96", "RecruitmentBoomBust"]:
     raise NotImplementedError
 
 if results_folder is None:
@@ -53,16 +55,54 @@ rng = np.random.RandomState(seed)
 model_abcpy, statistics, param_bounds = instantiate_model(model_name=model, reparametrized=False)
 np.save(observation_folder + "theta_obs",
         exact_param_values[:4] if model == "univariate_g-and-k" else exact_param_values)
+if model == "normal_location_misspec":
+    exact_param_values = exact_param_values + [1]
+    outlier_parameters = [outliers_location, 1]
+elif "g-and-k" in model:
+    pass
+elif "Lorenz" in model:
+    outlier_parameters = [1.41, 0.1, 2.4, 0.95]
+else:
+    outlier_parameters = [0.9, 70.0, 0.80, 0.05]
 
-simulations = model_abcpy.forward_simulate(exact_param_values + [1],
+simulations = model_abcpy.forward_simulate(exact_param_values,
                                            int(np.rint(n_observations_per_param * (1 - epsilon))), rng=rng)
-outliers = model_abcpy.forward_simulate([outliers_location, 1],
-                                        int(np.rint(n_observations_per_param * epsilon)),
-                                        rng=rng)
-outliers = Identity().statistics(outliers)
 simulations = Identity().statistics(simulations)
-simulations = np.concatenate((simulations, outliers))
+n_outliers = int(np.rint(n_observations_per_param * epsilon))
+if n_outliers > 0:
+    if model == "normal_location_misspec" or model == "RecruitmentBoomBust":
+        outliers = model_abcpy.forward_simulate(outlier_parameters, n_outliers, rng=rng)
+        outliers = Identity().statistics(outliers)
+    else:
+        outliers = model_abcpy.forward_simulate(outlier_parameters, n_outliers, rng=rng)
+        outliers = Identity().statistics(outliers)
+        fig, axes = plt.subplots(2, 4, figsize=(12, 8), sharex="all")
+        axes = axes.flatten()
+        for i in range(8):
+            axes[i].plot(simulations.reshape(n_observations_per_param - n_outliers, 8, -1)[:, i].transpose(1, 0),
+                         alpha=0.5, color="blue")
+            axes[i].plot(outliers.reshape(n_outliers, 8, -1)[:, i].transpose(1, 0), alpha=0.5, color="r")
+            axes[i].set_title(r"$y_{}$".format(i + 1), size=14)
+            axes[i].set_xlabel("Timestep")
+        if 0 < epsilon < 0.1:
+            plt.savefig(observation_folder + "x_obs_epsilon_{:.2f}.pdf".format(epsilon))
+        else:
+            plt.savefig(observation_folder + "x_obs_epsilon_{:.1f}.pdf".format(epsilon))
+    simulations = np.concatenate((simulations, outliers))
+else:
+    print("No outliers have been generated")
 print("Parameters shape", len(exact_param_values))
 print("Simulations shape", simulations.shape)
 
-np.save(observation_folder + "x_obs_epsilon_{:.1f}_outliers_loc_{:.1f}".format(epsilon, outliers_location), simulations)
+if model == "normal_location_misspec":
+    if 0 < epsilon < 0.1:
+        np.save(observation_folder + "x_obs_epsilon_{:.2f}_outliers_loc_{:.1f}".format(epsilon, outliers_location),
+                simulations)
+    else:
+        np.save(observation_folder + "x_obs_epsilon_{:.1f}_outliers_loc_{:.1f}".format(epsilon, outliers_location),
+                simulations)
+else:
+    if 0 < epsilon < 0.1:
+        np.save(observation_folder + "x_obs_epsilon_{:.2f}".format(epsilon), simulations)
+    else:
+        np.save(observation_folder + "x_obs_epsilon_{:.1f}".format(epsilon), simulations)

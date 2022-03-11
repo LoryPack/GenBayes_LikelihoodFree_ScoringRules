@@ -1,13 +1,13 @@
-import numpy as np
 import os
 import sys
 
+import numpy as np
 from abcpy.output import Journal
 
 sys.path.append(os.getcwd())  # add the root of this project to python path
 
 from src.parsers import parser_plots_marginals_and_traces
-from src.utils import define_default_folders_scoring_rules, extract_params_from_journal_normal, kde_plot
+from src.utils import define_default_folders, extract_params_from_journal_normal, kde_plot
 from src.models import instantiate_model
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ if model not in ["normal_location_misspec"]:
 model_abc, statistics, param_bounds = instantiate_model(model)
 param_names_latex = [r'$\theta$']
 
-default_root_folder = define_default_folders_scoring_rules()
+default_root_folder = define_default_folders()
 if results_folder is None:
     results_folder = default_root_folder[model]
 

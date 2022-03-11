@@ -1,7 +1,8 @@
-import numpy as np
 from abc import ABCMeta, abstractmethod
 
+import numpy as np
 from abcpy.approx_lhd import Approx_likelihood
+from abcpy.statistics import Identity
 
 
 class ScoringRule(Approx_likelihood, metaclass=ABCMeta):
@@ -317,3 +318,49 @@ class KernelScore(ScoringRule):
         t_sim_sim = (1. / (n_sim * n_sim)) * np.sum(K_sim_sim)
 
         return n_obs * t_sim_sim - t_obs_sim
+
+
+def _estimate_score_timeseries(simulations_timeseries, observations_timeseries, score="kernel", **kwargs):
+    """Here, simulations_timeseries is of shape (n_sim, p, timesteps) and observation_timeseries is of shape
+    (n_obs, p, timesteps). Alternatively, simulations_timeseries is of shape (n_sim, 1, timesteps) and 
+    observation_timeseries is of shape (n_obs, 1, timesteps), in which case we assume p=1 and reshape accordingly"""
+
+    assert len(simulations_timeseries.shape) == len(observations_timeseries.shape)
+    assert len(simulations_timeseries.shape) in [2, 3]
+    if len(simulations_timeseries.shape) == 2:
+        simulations_timeseries = simulations_timeseries.reshape(simulations_timeseries.shape[0], 1,
+                                                                simulations_timeseries.shape[1])
+        observations_timeseries = observations_timeseries.reshape(observations_timeseries.shape[0], 1,
+                                                                  observations_timeseries.shape[1])
+    assert simulations_timeseries.shape[1] == observations_timeseries.shape[1]
+    assert simulations_timeseries.shape[2] == observations_timeseries.shape[2]
+
+    # it did not work if an array was int:
+    observations_timeseries = observations_timeseries.astype(float)
+    simulations_timeseries = simulations_timeseries.astype(float)
+
+    n_timesteps = simulations_timeseries.shape[2]
+
+    sr_values = np.zeros(n_timesteps)
+    if score == "kernel":
+        scoring_rule = KernelScore(Identity(degree=1, cross=False), **kwargs)
+    elif score == "energy":
+        scoring_rule = EnergyScore(Identity(degree=1, cross=False), **kwargs)
+    else:
+        raise RuntimeError
+
+    for t in range(n_timesteps):
+        sr_values[t] = scoring_rule.score([x for x in observations_timeseries[:, :, t]],
+                                          [x for x in simulations_timeseries[:, :, t]])
+
+    sr_values /= observations_timeseries.shape[0]  # divide by the number of samples.
+
+    return sr_values, np.sum(sr_values)
+
+
+def estimate_kernel_score_timeseries(simulations_timeseries, observation_timeseries, **kwargs):
+    return _estimate_score_timeseries(simulations_timeseries, observation_timeseries, score="kernel", **kwargs)
+
+
+def estimate_energy_score_timeseries(simulations_timeseries, observation_timeseries, **kwargs):
+    return _estimate_score_timeseries(simulations_timeseries, observation_timeseries, score="energy", **kwargs)
