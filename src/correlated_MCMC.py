@@ -75,9 +75,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
-               adapt_proposal_cov_interval=None, adapt_proposal_start_step=200, adapt_proposal_after_burnin=False,
-               covFactor=None, bounds=None, speedup_dummy=True,
-               n_groups_correlated_randomness=False, use_tqdm=True, journal_file=None, path_to_save_journal=None):
+               adapt_proposal_cov_interval=None, adapt_proposal_start_step=0, adapt_proposal_after_burnin=False,
+               covFactor=None, bounds=None, speedup_dummy=True, n_groups_correlated_randomness=None, use_tqdm=True,
+               journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
         to estimate the approximate loglikelihood. The burnin steps are then discarded from the chain stored in the
@@ -124,10 +124,10 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             estimate is very noisy, the adaptation may work pooly (see `covFactor` parameter).
         adapt_proposal_start_step: integer, optional
             the step after which to start adapting the covariance matrix following Haario's approach in [1]. See also
-            adapt_proposal_cov_interval. Defaults to 200. 
+            adapt_proposal_cov_interval. Defaults to 0.
         adapt_proposal_after_burnin: boolean, optional
-            If True, keep adapting the proposal after the end of burnin iterations following Haario's method in [1]. 
-            Otherwise, stop adapting it after burnin, and use the last proposal matrix. Defaults to False. 
+            If True, keep adapting the proposal after the end of burnin iterations following Haario's method in [1].
+            Otherwise, stop adapting it after burnin, and use the last proposal matrix. Defaults to False.
         covFactor : float, optional
             the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
             the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
@@ -163,7 +163,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             are the same as in the previous step for all n_samples_per_param simulations except for a single group,
             for which fresh random variables are used.
             In practice, this is done by storing the random seeds. This approach should reduce stickiness of the chain
-            and was discussed in [2] for the Bayesian Synthetic Likelihood framework.
+            and was discussed in [2] for the Bayesian Synthetic Likelihood framework. Notice that, when
+            n_groups_correlated_randomness > 0 and speedup_dummy is True, you obtain different results for different
+            values of n_groups_correlated_randomness due to different ways of handling random seeds.
             When None, we do not keep track of the random seeds. Default value is None.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
@@ -199,10 +201,10 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
                 # use a single random seed for each group and simulate together, to have some speed up
                 self.seed_arr_current = self.rng.randint(0, np.iinfo(np.uint32).max,
-                                                 size=self.n_groups_correlated_randomness, dtype=np.uint32)
+                                                         size=self.n_groups_correlated_randomness, dtype=np.uint32)
             else:
                 self.seed_arr_current = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param,
-                                                     dtype=np.uint32)
+                                                         dtype=np.uint32)
         if self.n_groups_correlated_randomness is not None and isinstance(self.backend,
                                                                           BackendDummy) and self.speedup_dummy:
             # only case in which multiple simulations per map_step are done:
@@ -272,6 +274,10 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                 accepted_parameter = self.get_parameters()
             else:
                 accepted_parameter = iniPoint
+                if isinstance(accepted_parameter, np.ndarray) and len(accepted_parameter.shape) == 1 or isinstance(
+                        accepted_parameter, list) and not hasattr(accepted_parameter[0], "__len__"):
+                    # reshape whether we pass a 1d array or list.
+                    accepted_parameter = [np.array([x]) for x in accepted_parameter]  # give correct shape for later
             if burnin == 0:
                 accepted_parameters_burnin.append(accepted_parameter)
             self.logger.info("Calculate approximate loglikelihood")
@@ -539,7 +545,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                     # now: pick the position of random seeds to be modified:
                     index = self.rng.randint(0, self.n_groups_correlated_randomness)  # the number of correlated groups
                     # and replace it with a new seed.
-                    self.seed_arr_proposal[index] = self.rng.randint(0, np.iinfo(np.uint32).max, size=1, dtype=np.uint32)
+                    self.seed_arr_proposal[index] = self.rng.randint(0, np.iinfo(np.uint32).max, size=1,
+                                                                     dtype=np.uint32)
                     # todo in this case, this does not generate the correct number of simulations if
                     #  self.n_samples_per_param % self.n_groups_correlated_randomness != 0, but it generates
                     #  group_size * n_groups_correlated_randomness. Fix!
@@ -550,10 +557,12 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                     index = self.rng.randint(0, self.n_groups_correlated_randomness)  # the number of correlated groups
                     # and replace it with a new seed.
                     if index == self.n_groups_correlated_randomness - 1 and self.remainder != 0:
-                        self.seed_arr_proposal[index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
+                        self.seed_arr_proposal[
+                        index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
                             0, np.iinfo(np.uint32).max, size=self.remainder, dtype=np.uint32)
                     else:
-                        self.seed_arr_proposal[index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
+                        self.seed_arr_proposal[
+                        index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
                             0, np.iinfo(np.uint32).max, size=self.group_size, dtype=np.uint32)
                 seed_arr = self.seed_arr_proposal
             else:
