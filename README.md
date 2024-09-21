@@ -1,7 +1,6 @@
-# Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators 
-
-Code for the paper: __Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators__,
-which can be found [here](https://arxiv.org/abs/2104.03889).
+# Generalized Bayesian Likelihood-Free Inference
+Code for the paper: __Generalized Bayesian Likelihood-Free Inference__,
+which can be found [here](https://doi.org/10.1214/24-EJS2283).
 
 ## Instructions
 
@@ -44,11 +43,15 @@ We provide some tests for our source code. To run them, do:
 ## Citation
 Please use the following `.bib` entry:
 
-    @misc{pacchiardi2021generalized,
-          title={Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators}, 
-          author={Lorenzo Pacchiardi and Ritabrata Dutta},
-          year={2021},
-          eprint={2104.03889},
-          archivePrefix={arXiv},
-          primaryClass={stat.ME}
-    }
+@article{pacchiardi2024generalized,
+        author = {Lorenzo Pacchiardi and Sherman Khoo and Ritabrata Dutta},
+        title = {{Generalized Bayesian likelihood-free inference}},
+        volume = {18},
+        journal = {Electronic Journal of Statistics},
+        number = {2},
+        publisher = {Institute of Mathematical Statistics and Bernoulli Society},
+        pages = {3628 -- 3686},
+        year = {2024},
+        doi = {10.1214/24-EJS2283},
+        URL = {https://doi.org/10.1214/24-EJS2283}
+}
