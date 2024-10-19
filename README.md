@@ -2,6 +2,8 @@
 Code for the paper: __Generalized Bayesian Likelihood-Free Inference__,
 which can be found [here](https://doi.org/10.1214/24-EJS2283).
 
+Code for the SGMCMC experiments can be found [here](https://github.com/Shermjj/GenBayes_LikelihoodFree_ScoringRules_SGMCMC).
+
 ## Instructions
 
 All experiments and plots from the paper can be reproduced using the code provided here. 
@@ -42,7 +44,7 @@ We provide some tests for our source code. To run them, do:
 
 ## Citation
 Please use the following `.bib` entry:
-
+```bibtex
 @article{pacchiardi2024generalized,
         author = {Lorenzo Pacchiardi and Sherman Khoo and Ritabrata Dutta},
         title = {{Generalized Bayesian likelihood-free inference}},
@@ -55,3 +57,4 @@ Please use the following `.bib` entry:
         doi = {10.1214/24-EJS2283},
         URL = {https://doi.org/10.1214/24-EJS2283}
 }
+```
